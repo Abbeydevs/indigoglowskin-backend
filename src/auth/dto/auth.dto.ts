@@ -28,3 +28,19 @@ export class LoginDto {
   @IsNotEmpty()
   password!: string;
 }
+
+export class ForgotPasswordDto {
+  @IsEmail({}, { message: 'Please provide a valid email address.' })
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Reset token is missing.' })
+  token!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6, { message: 'New password must be at least 6 characters long.' })
+  newPassword!: string;
+}

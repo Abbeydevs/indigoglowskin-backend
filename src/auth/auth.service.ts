@@ -2,17 +2,26 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { RegisterDto, LoginDto } from './dto/auth.dto';
+import {
+  RegisterDto,
+  LoginDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './dto/auth.dto';
+import { MailService } from 'src/mail/mail.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private mailService: MailService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -76,6 +85,67 @@ export class AuthService {
         name,
         role,
       },
+    };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    const successMessage = {
+      message:
+        'If an account with that email exists, a reset link has been sent.',
+    };
+
+    if (!user) {
+      return successMessage;
+    }
+
+    const resetToken: string = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetToken,
+        resetTokenExpiry,
+      },
+    });
+
+    await this.mailService.sendPasswordResetEmail(user.email, resetToken);
+
+    return successMessage;
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        resetToken: dto.token,
+        resetTokenExpiry: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired password reset token.');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedNewPassword = await bcrypt.hash(dto.newPassword, salt);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedNewPassword,
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
+    });
+
+    return {
+      message: 'Your password has been successfully reset. You can now log in.',
     };
   }
 }
