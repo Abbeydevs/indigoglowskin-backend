@@ -8,47 +8,19 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  role      String   @default("CUSTOMER")
+model Address {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  street     String
+  city       String
+  state      String
+  country    String
+  postalCode String?
+  isDefault  Boolean @default(false)
+
   createdAt DateTime @default(now())
-
-  orders   Order[]
-  bookings Booking[]
-}
-
-model Category {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  image    String?
-  products Product[]
-}
-
-model Product {
-  id           String   @id @default(cuid())
-  name         String
-  description  String
-  price        Int
-  oldPrice     Int?
-  images       String[]
-  sizes        String[]
-  isNew        Boolean  @default(false)
-  isBestSeller Boolean  @default(false)
-  categoryId   String
-  category     Category @relation(fields: [categoryId], references: [id])
-  createdAt    DateTime @default(now())
-}
-
-model Order {
-  id          String   @id @default(cuid())
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id])
-  totalAmount Int
-  status      String   @default("PENDING")
-  createdAt   DateTime @default(now())
 }
 
 model Booking {
@@ -70,6 +42,37 @@ model Blog {
   createdAt   DateTime @default(now())
 }
 
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  image    String?
+  products Product[]
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  totalAmount Int
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  description  String
+  price        Int
+  oldPrice     Int?
+  images       String[]
+  sizes        String[]
+  isNew        Boolean  @default(false)
+  isBestSeller Boolean  @default(false)
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
 model Testimonial {
   id           String   @id @default(cuid())
   customerName String
@@ -78,4 +81,19 @@ model Testimonial {
   image        String?
   productUsed  String?
   createdAt    DateTime @default(now())
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  password         String
+  name             String?
+  role             String    @default("CUSTOMER")
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+
+  orders    Order[]
+  bookings  Booking[]
+  addresses Address[]
 }
