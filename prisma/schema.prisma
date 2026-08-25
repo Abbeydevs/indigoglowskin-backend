@@ -34,12 +34,15 @@ model Booking {
 }
 
 model Blog {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  image       String?
-  authorName  String
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  title      String
+  category   String
+  excerpt    String
+  content    String
+  image      String?
+  authorName String   @default("Indigoglowskin Experts")
+  createdAt  DateTime @default(now())
 }
 
 model Category {

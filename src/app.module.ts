@@ -11,6 +11,7 @@ import { AddressesModule } from './addresses/addresses.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { TestimonialsModule } from './testimonials/testimonials.module';
+import { BlogsModule } from './blogs/blogs.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { TestimonialsModule } from './testimonials/testimonials.module';
     CategoriesModule,
     ProductsModule,
     TestimonialsModule,
+    BlogsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
