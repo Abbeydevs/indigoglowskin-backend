@@ -73,7 +73,8 @@ export class TestimonialsService {
       data: {
         customerName: dto.customerName || existing.customerName,
         content: dto.content || existing.content,
-        rating: dto.rating !== undefined ? dto.rating : existing.rating,
+        // Fix: Explicitly cast the multipart string payload to a Number
+        rating: dto.rating !== undefined ? Number(dto.rating) : existing.rating,
         productUsed:
           dto.productUsed !== undefined
             ? dto.productUsed
