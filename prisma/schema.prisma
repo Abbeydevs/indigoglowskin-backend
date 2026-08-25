@@ -64,6 +64,7 @@ model Product {
   description  String
   price        Int
   oldPrice     Int?
+  stockCount   Int      @default(0)
   images       String[]
   sizes        String[]
   isNew        Boolean  @default(false)

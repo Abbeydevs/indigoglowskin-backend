@@ -35,6 +35,7 @@ export class ProductsService {
         description: dto.description,
         price: dto.price,
         oldPrice: dto.oldPrice || null,
+        stockCount: dto.stockCount || 0,
         categoryId: dto.categoryId,
         sizes: sizesArray,
         images: imageUrls,
@@ -97,8 +98,18 @@ export class ProductsService {
       data: {
         name: dto.name || existing.name,
         description: dto.description || existing.description,
-        price: dto.price || existing.price,
-        oldPrice: dto.oldPrice !== undefined ? dto.oldPrice : existing.oldPrice,
+        price: dto.price !== undefined ? Number(dto.price) : existing.price,
+        oldPrice:
+          dto.oldPrice !== undefined ? Number(dto.oldPrice) : existing.oldPrice,
+        stockCount:
+          dto.stockCount !== undefined
+            ? Number(dto.stockCount)
+            : existing.stockCount,
+        isNew: dto.isNew !== undefined ? Boolean(dto.isNew) : existing.isNew,
+        isBestSeller:
+          dto.isBestSeller !== undefined
+            ? Boolean(dto.isBestSeller)
+            : existing.isBestSeller,
         categoryId: dto.categoryId || existing.categoryId,
         sizes: sizesArray,
         images: imageUrls,
