@@ -1,10 +1,15 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 
 @Injectable()
 export class MailService {
   private resend: Resend;
+  private readonly logger = new Logger(MailService.name);
 
   constructor(private config: ConfigService) {
     const apiKey = this.config.get<string>('RESEND_API_KEY');
@@ -41,6 +46,33 @@ export class MailService {
       }
       throw new InternalServerErrorException(
         'An unexpected error occurred during email delivery.',
+      );
+    }
+  }
+
+  async sendContactInquiryEmail(name: string, email: string, message: string) {
+    try {
+      await this.resend.emails.send({
+        from: 'Indigoglowskin Contact Form <support@thesoftwarehub.tech>',
+        to: 'abbey.developer@gmail.com',
+        replyTo: email,
+        subject: `New Inquiry from ${name}`,
+        html: `
+          <div style="font-family: sans-serif; color: #333; max-w-md; margin: auto;">
+            <h2 style="font-weight: 300; border-bottom: 1px solid #eaeaea; padding-bottom: 10px;">New Contact Inquiry</h2>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Message:</strong></p>
+            <blockquote style="background-color: #f9f9f9; border-left: 4px solid #ccc; padding: 16px; margin-left: 0; white-space: pre-wrap;">
+              ${message}
+            </blockquote>
+          </div>
+        `,
+      });
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to send contact inquiry email via Resend',
+        error,
       );
     }
   }
