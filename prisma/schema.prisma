@@ -52,6 +52,28 @@ model Category {
   products Product[]
 }
 
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId])
+}
+
 model Order {
   id          String   @id @default(cuid())
   userId      String?
@@ -62,19 +84,21 @@ model Order {
 }
 
 model Product {
-  id           String   @id @default(cuid())
-  name         String
-  description  String
-  price        Int
-  oldPrice     Int?
-  stockCount   Int      @default(0)
-  images       String[]
-  sizes        String[]
-  isNew        Boolean  @default(false)
-  isBestSeller Boolean  @default(false)
-  categoryId   String
-  category     Category @relation(fields: [categoryId], references: [id])
-  createdAt    DateTime @default(now())
+  id            String         @id @default(cuid())
+  name          String
+  description   String
+  price         Int
+  oldPrice      Int?
+  stockCount    Int            @default(0)
+  images        String[]
+  sizes         String[]
+  isNew         Boolean        @default(false)
+  isBestSeller  Boolean        @default(false)
+  categoryId    String
+  category      Category       @relation(fields: [categoryId], references: [id])
+  createdAt     DateTime       @default(now())
+  cartItems     CartItem[]
+  wishlistItems WishlistItem[]
 }
 
 model Testimonial {
@@ -101,4 +125,35 @@ model User {
   orders    Order[]
   bookings  Booking[]
   addresses Address[]
+  cart      Cart?
+  wishlist  Wishlist?
+}
+
+model Wishlist {
+  id        String         @id @default(uuid())
+  userId    String         @unique
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WishlistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model WishlistItem {
+  id         String   @id @default(uuid())
+  wishlistId String
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([wishlistId, productId])
+}
+
+model Inquiry {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  message   String
+  status    String   @default("UNREAD")
+  createdAt DateTime @default(now())
 }
