@@ -15,6 +15,8 @@ import { BlogsModule } from './blogs/blogs.module';
 import { CartModule } from './cart/cart.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { ContactModule } from './contact/contact.module';
+import { SpaServiceModule } from './spa-service/spa-service.module';
+import { BookingModule } from './booking/booking.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { ContactModule } from './contact/contact.module';
     CartModule,
     WishlistModule,
     ContactModule,
+    SpaServiceModule,
+    BookingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
