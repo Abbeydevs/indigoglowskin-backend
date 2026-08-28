@@ -35,6 +35,10 @@ model Booking {
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
 
+  guestName  String?
+  guestEmail String?
+  guestPhone String?
+
   serviceId String
   service   SpaService @relation(fields: [serviceId], references: [id])
 
