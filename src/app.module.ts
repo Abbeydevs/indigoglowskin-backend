@@ -17,6 +17,8 @@ import { WishlistModule } from './wishlist/wishlist.module';
 import { ContactModule } from './contact/contact.module';
 import { SpaServiceModule } from './spa-service/spa-service.module';
 import { BookingModule } from './booking/booking.module';
+import { CheckoutModule } from './checkout/checkout.module';
+import { WebhookModule } from './webhook/webhook.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { BookingModule } from './booking/booking.module';
     ContactModule,
     SpaServiceModule,
     BookingModule,
+    CheckoutModule,
+    WebhookModule,
   ],
   controllers: [AppController],
   providers: [AppService],

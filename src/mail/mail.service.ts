@@ -174,4 +174,93 @@ export class MailService {
       );
     }
   }
+
+  async sendOrderStatusUpdateEmail(details: {
+    orderId: string;
+    customerEmail: string;
+    customerName: string;
+    status: string;
+  }) {
+    const statusMessages: Record<string, string> = {
+      PROCESSING:
+        'We are currently packing your order and getting it ready for shipment.',
+      SHIPPED:
+        'Great news! Your order has been handed over to our delivery partners and is on its way to you.',
+      DELIVERED:
+        'Your order has been marked as delivered. Enjoy your IndigoGlowSkin products!',
+    };
+
+    await this.resend.emails.send({
+      from: 'Indigoglowskin Tracking <support@thesoftwarehub.tech>',
+      to: details.customerEmail,
+      subject: `Order Update: Your package is ${details.status.toLowerCase()}`,
+      html: `<h2>Order Update: #${details.orderId.slice(0, 8).toUpperCase()}</h2>
+             <p>Hello ${details.customerName},</p>
+             <p>${statusMessages[details.status] || 'Your order status has been updated.'}</p>`,
+    });
+  }
+
+  async sendOrderConfirmationEmail(details: {
+    orderId: string;
+    customerEmail: string;
+    customerName: string;
+    totalAmount: number;
+    items: { name: string; quantity: number; price: number }[];
+    shippingAddress: string;
+  }) {
+    const itemsHtml = details.items
+      .map(
+        (item) =>
+          `<li style="margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 8px;">
+            <strong>${item.quantity}x ${item.name}</strong><br/>
+            <span style="color: #666; font-size: 12px;">₦${item.price.toLocaleString()}</span>
+          </li>`,
+      )
+      .join('');
+
+    try {
+      await this.resend.emails.send({
+        from: 'Indigoglowskin Orders <support@thesoftwarehub.tech>',
+        to: details.customerEmail,
+        subject: `Order Confirmed: #${details.orderId.slice(0, 8).toUpperCase()}`,
+        html: `
+          <div style="font-family: sans-serif; color: #333; max-w-md; margin: auto;">
+            <h2 style="font-weight: 300;">Thank you for your order, ${details.customerName}!</h2>
+            <p>We have received your payment of <strong>₦${details.totalAmount.toLocaleString()}</strong>.</p>
+            <h3 style="font-size: 14px; text-transform: uppercase; margin-top: 24px;">Order Summary</h3>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+              ${itemsHtml}
+            </ul>
+            <p style="margin-top: 24px; font-size: 13px;"><strong>Shipping To:</strong><br/>${details.shippingAddress}</p>
+          </div>
+        `,
+      });
+    } catch (error: unknown) {
+      this.logger.error('Failed to send customer order email', error);
+    }
+
+    try {
+      await this.resend.emails.send({
+        from: 'Indigoglowskin Alerts <support@thesoftwarehub.tech>',
+        to: this.getAdminEmail(),
+        subject: `ACTION REQUIRED: New Order #${details.orderId.slice(0, 8).toUpperCase()}`,
+        html: `
+          <div style="font-family: sans-serif; color: #333; max-w-md; margin: auto;">
+            <h2 style="font-weight: 300; color: #166534;">Payment Received</h2>
+            <p><strong>${details.customerName}</strong> (${details.customerEmail}) just paid <strong>₦${details.totalAmount.toLocaleString()}</strong>.</p>
+            <h3 style="font-size: 14px; text-transform: uppercase; margin-top: 24px;">Items to Pack:</h3>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+              ${itemsHtml}
+            </ul>
+            <div style="background-color: #f9f9f9; border-left: 4px solid #ccc; padding: 16px; margin-top: 24px;">
+              <p style="margin: 0;"><strong>Deliver To:</strong><br/>${details.shippingAddress}</p>
+            </div>
+            <p style="margin-top: 24px; font-size: 11px; color: #666;">Log in to the dashboard to update the status to PROCESSING.</p>
+          </div>
+        `,
+      });
+    } catch (error: unknown) {
+      this.logger.error('Failed to send company order email', error);
+    }
+  }
 }
