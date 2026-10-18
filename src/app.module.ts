@@ -19,6 +19,7 @@ import { SpaServiceModule } from './spa-service/spa-service.module';
 import { BookingModule } from './booking/booking.module';
 import { CheckoutModule } from './checkout/checkout.module';
 import { WebhookModule } from './webhook/webhook.module';
+import { ConsultationModule } from './consultation/consultation.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { WebhookModule } from './webhook/webhook.module';
     BookingModule,
     CheckoutModule,
     WebhookModule,
+    ConsultationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

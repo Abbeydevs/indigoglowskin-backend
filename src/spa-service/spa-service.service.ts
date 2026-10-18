@@ -33,6 +33,7 @@ export class SpaServiceService {
         duration: dto.duration,
         price: dto.price,
         categoryId: dto.categoryId,
+        image: dto.image,
       },
     });
   }

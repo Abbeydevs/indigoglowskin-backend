@@ -8,6 +8,27 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum ServiceType {
+  TREATMENT
+  CONSULTATION
+}
+
 model Address {
   id     String @id @default(cuid())
   userId String
@@ -23,13 +44,6 @@ model Address {
   createdAt DateTime @default(now())
 }
 
-enum BookingStatus {
-  PENDING
-  CONFIRMED
-  COMPLETED
-  CANCELLED
-}
-
 model Booking {
   id     String  @id @default(cuid())
   userId String?
@@ -39,8 +53,11 @@ model Booking {
   guestEmail String?
   guestPhone String?
 
-  serviceId String
-  service   SpaService @relation(fields: [serviceId], references: [id])
+  serviceId String?
+  service   SpaService? @relation(fields: [serviceId], references: [id])
+
+  consultation   Consultation? @relation(fields: [consultationId], references: [id])
+  consultationId String?
 
   date      DateTime
   startTime DateTime
@@ -93,13 +110,18 @@ model CartItem {
   @@unique([cartId, productId])
 }
 
-enum OrderStatus {
-  PENDING
-  PAID
-  PROCESSING
-  SHIPPED
-  DELIVERED
-  CANCELLED
+model Consultation {
+  id          String  @id @default(uuid())
+  format      String
+  name        String
+  description String?
+  price       Float
+  duration    Int     @default(30)
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Order {
@@ -165,6 +187,7 @@ model SpaService {
   description String
   duration    Int
   price       Float
+  image       String?
   categoryId  String
   category    ServiceCategory @relation(fields: [categoryId], references: [id])
   bookings    Booking[]

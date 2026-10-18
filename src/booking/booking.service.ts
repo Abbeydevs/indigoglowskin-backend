@@ -16,23 +16,48 @@ export class BookingService {
   ) {}
 
   async createBooking(dto: CreateBookingDto) {
-    const service = await this.prisma.spaService.findUnique({
-      where: { id: dto.serviceId },
-    });
-
-    if (!service) {
-      throw new NotFoundException(
-        'The requested spa service could not be found.',
+    if (!dto.serviceId && !dto.consultationId) {
+      throw new BadRequestException(
+        'You must provide either a serviceId or a consultationId.',
       );
     }
 
+    let duration = 0;
+    let bookedItemName = '';
+
+    if (dto.serviceId) {
+      const service = await this.prisma.spaService.findUnique({
+        where: { id: dto.serviceId },
+      });
+      if (!service)
+        throw new NotFoundException(
+          'The requested treatment could not be found.',
+        );
+      duration = service.duration;
+      bookedItemName = service.name;
+    } else if (dto.consultationId) {
+      const consultation = await this.prisma.consultation.findUnique({
+        where: { id: dto.consultationId },
+      });
+      if (!consultation)
+        throw new NotFoundException(
+          'The requested consultation could not be found.',
+        );
+      duration = consultation.duration;
+      bookedItemName = consultation.name;
+    }
+
     const start = new Date(dto.startTime);
-    const end = new Date(start.getTime() + service.duration * 60000);
+    const end = new Date(start.getTime() + duration * 60000);
     const bookingDate = new Date(dto.date);
+
+    const overlapFilter = dto.serviceId
+      ? { serviceId: dto.serviceId }
+      : { consultationId: dto.consultationId };
 
     const overlappingBookings = await this.prisma.booking.findMany({
       where: {
-        serviceId: dto.serviceId,
+        ...overlapFilter,
         status: { not: 'CANCELLED' },
         startTime: { lt: end },
         endTime: { gt: start },
@@ -52,6 +77,7 @@ export class BookingService {
         guestEmail: dto.guestEmail,
         guestPhone: dto.guestPhone,
         serviceId: dto.serviceId,
+        consultationId: dto.consultationId,
         date: bookingDate,
         startTime: start,
         endTime: end,
@@ -79,7 +105,7 @@ export class BookingService {
       clientName,
       clientEmail,
       clientPhone,
-      serviceName: service.name,
+      serviceName: bookedItemName,
       date: bookingDate.toISOString().split('T')[0],
       time: start.toLocaleTimeString([], {
         hour: '2-digit',
@@ -94,7 +120,7 @@ export class BookingService {
   async getUserBookings(userId: string) {
     return this.prisma.booking.findMany({
       where: { userId },
-      include: { service: true },
+      include: { service: true, consultation: true },
       orderBy: { startTime: 'desc' },
     });
   }
@@ -103,6 +129,7 @@ export class BookingService {
     return this.prisma.booking.findMany({
       include: {
         service: true,
+        consultation: true,
         user: { select: { name: true, email: true, phone: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -115,6 +142,7 @@ export class BookingService {
       data: { status },
       include: {
         service: true,
+        consultation: true,
         user: { select: { name: true, email: true } },
       },
     });
@@ -124,6 +152,11 @@ export class BookingService {
     const clientName: string =
       updatedBooking.user?.name ?? updatedBooking.guestName ?? 'Valued Client';
 
+    const bookedItemName =
+      updatedBooking.service?.name ??
+      updatedBooking.consultation?.name ??
+      'Clinic Session';
+
     if (
       typeof clientEmail === 'string' &&
       clientEmail.length > 0 &&
@@ -132,7 +165,7 @@ export class BookingService {
       void this.mailService.sendBookingStatusUpdateEmail({
         clientEmail,
         clientName,
-        serviceName: updatedBooking.service.name,
+        serviceName: bookedItemName,
         date: updatedBooking.date.toISOString().split('T')[0],
         time: updatedBooking.startTime.toLocaleTimeString([], {
           hour: '2-digit',

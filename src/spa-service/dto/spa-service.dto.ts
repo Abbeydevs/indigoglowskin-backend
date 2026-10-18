@@ -32,6 +32,10 @@ export class CreateSpaServiceDto {
   @IsNotEmpty()
   @IsString()
   categoryId!: string;
+
+  @IsOptional()
+  @IsString()
+  image?: string;
 }
 
 export class UpdateSpaServiceDto {
@@ -54,4 +58,8 @@ export class UpdateSpaServiceDto {
   @IsOptional()
   @IsString()
   categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  image?: string;
 }
