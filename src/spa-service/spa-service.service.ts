@@ -23,9 +23,23 @@ export class SpaServiceService {
     });
   }
 
-  async createCategory(dto: CreateCategoryDto) {
+  async createCategory(dto: CreateCategoryDto, file?: Express.Multer.File) {
+    let imageUrl: string | null = null;
+
+    if (file) {
+      const result = await this.cloudinary.uploadImage(
+        file.buffer,
+        'treatment-categories',
+      );
+      imageUrl = result.secure_url;
+    }
+
     return this.prisma.serviceCategory.create({
-      data: { name: dto.name },
+      data: {
+        name: dto.name,
+        description: dto.description,
+        image: imageUrl,
+      },
     });
   }
 
@@ -85,10 +99,35 @@ export class SpaServiceService {
     });
   }
 
-  async updateCategory(id: string, dto: UpdateCategoryDto) {
+  async updateCategory(
+    id: string,
+    dto: UpdateCategoryDto,
+    file?: Express.Multer.File,
+  ) {
+    const existing = await this.prisma.serviceCategory.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException('Category not found');
+    }
+
+    let imageUrl = dto.image || existing.image;
+
+    if (file) {
+      const result = await this.cloudinary.uploadImage(
+        file.buffer,
+        'treatment-categories',
+      );
+      imageUrl = result.secure_url;
+    }
+
     return this.prisma.serviceCategory.update({
       where: { id },
-      data: { name: dto.name },
+      data: {
+        name: dto.name ?? existing.name,
+        description: dto.description ?? existing.description,
+        image: imageUrl,
+      },
     });
   }
 

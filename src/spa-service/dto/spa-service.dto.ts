@@ -5,12 +5,28 @@ export class CreateCategoryDto {
   @IsNotEmpty()
   @IsString()
   name!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  image?: string;
 }
 
 export class UpdateCategoryDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  name!: string;
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  image?: string;
 }
 
 export class CreateSpaServiceDto {

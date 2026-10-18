@@ -9,6 +9,7 @@ import {
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { SpaServiceService } from './spa-service.service';
 import {
   CreateCategoryDto,
@@ -16,7 +17,7 @@ import {
   UpdateCategoryDto,
   UpdateSpaServiceDto,
 } from './dto/spa-service.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
+import 'multer';
 
 @Controller('spa-services')
 export class SpaServiceController {
@@ -28,13 +29,22 @@ export class SpaServiceController {
   }
 
   @Post('category')
-  createCategory(@Body() dto: CreateCategoryDto) {
-    return this.spaServiceService.createCategory(dto);
+  @UseInterceptors(FileInterceptor('image'))
+  createCategory(
+    @Body() dto: CreateCategoryDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.spaServiceService.createCategory(dto, file);
   }
 
   @Patch('category/:id')
-  updateCategory(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
-    return this.spaServiceService.updateCategory(id, dto);
+  @UseInterceptors(FileInterceptor('image'))
+  updateCategory(
+    @Param('id') id: string,
+    @Body() dto: UpdateCategoryDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.spaServiceService.updateCategory(id, dto, file);
   }
 
   @Post()
