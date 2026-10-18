@@ -6,6 +6,8 @@ import {
   Delete,
   Param,
   Patch,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { SpaServiceService } from './spa-service.service';
 import {
@@ -14,6 +16,7 @@ import {
   UpdateCategoryDto,
   UpdateSpaServiceDto,
 } from './dto/spa-service.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('spa-services')
 export class SpaServiceController {
@@ -35,13 +38,22 @@ export class SpaServiceController {
   }
 
   @Post()
-  createService(@Body() dto: CreateSpaServiceDto) {
-    return this.spaServiceService.createService(dto);
+  @UseInterceptors(FileInterceptor('image'))
+  createService(
+    @Body() dto: CreateSpaServiceDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.spaServiceService.createService(dto, file);
   }
 
   @Patch(':id')
-  updateService(@Param('id') id: string, @Body() dto: UpdateSpaServiceDto) {
-    return this.spaServiceService.updateService(id, dto);
+  @UseInterceptors(FileInterceptor('image'))
+  updateService(
+    @Param('id') id: string,
+    @Body() dto: UpdateSpaServiceDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.spaServiceService.updateService(id, dto, file);
   }
 
   @Delete(':id')

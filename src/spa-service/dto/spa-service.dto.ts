@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { IsString, IsNumber, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateCategoryDto {
@@ -21,10 +22,12 @@ export class CreateSpaServiceDto {
   @IsString()
   description!: string;
 
+  @Type(() => Number)
   @IsNotEmpty()
   @IsNumber()
   duration!: number;
 
+  @Type(() => Number)
   @IsNotEmpty()
   @IsNumber()
   price!: number;
@@ -48,10 +51,12 @@ export class UpdateSpaServiceDto {
   description?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   duration?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   price?: number;
 

@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import {
   CreateCategoryDto,
   CreateSpaServiceDto,
@@ -9,7 +10,10 @@ import {
 
 @Injectable()
 export class SpaServiceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cloudinary: CloudinaryService,
+  ) {}
 
   async getAllServicesGrouped() {
     return this.prisma.serviceCategory.findMany({
@@ -25,7 +29,17 @@ export class SpaServiceService {
     });
   }
 
-  async createService(dto: CreateSpaServiceDto) {
+  async createService(dto: CreateSpaServiceDto, file?: Express.Multer.File) {
+    let imageUrl: string | null = null;
+
+    if (file) {
+      const result = await this.cloudinary.uploadImage(
+        file.buffer,
+        'treatments',
+      );
+      imageUrl = result.secure_url;
+    }
+
     return this.prisma.spaService.create({
       data: {
         name: dto.name,
@@ -33,15 +47,41 @@ export class SpaServiceService {
         duration: dto.duration,
         price: dto.price,
         categoryId: dto.categoryId,
-        image: dto.image,
+        image: imageUrl,
       },
     });
   }
 
-  async updateService(id: string, dto: UpdateSpaServiceDto) {
+  async updateService(
+    id: string,
+    dto: UpdateSpaServiceDto,
+    file?: Express.Multer.File,
+  ) {
+    const existing = await this.prisma.spaService.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Treatment not found');
+    }
+
+    let imageUrl = dto.image || existing.image;
+
+    if (file) {
+      const result = await this.cloudinary.uploadImage(
+        file.buffer,
+        'treatments',
+      );
+      imageUrl = result.secure_url;
+    }
+
     return this.prisma.spaService.update({
       where: { id },
-      data: dto,
+      data: {
+        name: dto.name,
+        description: dto.description,
+        duration: dto.duration,
+        price: dto.price,
+        categoryId: dto.categoryId,
+        image: imageUrl,
+      },
     });
   }
 
