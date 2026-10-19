@@ -45,7 +45,11 @@ model Address {
 }
 
 model Booking {
-  id     String  @id @default(cuid())
+  id String @id @default(cuid())
+
+  reference String? @unique
+  isPaid    Boolean @default(false)
+
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
 

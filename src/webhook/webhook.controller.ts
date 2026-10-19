@@ -65,63 +65,138 @@ export class WebhookController {
     if (event.event === 'charge.success') {
       const reference = event.data.reference;
 
-      try {
-        const order = await this.prisma.order.findUnique({
-          where: { reference },
-          include: { items: { include: { product: true } } },
-        });
-
-        if (!order) {
-          this.logger.error(`Order with reference ${reference} not found.`);
-          return;
-        }
-
-        if (order.status !== 'PENDING') {
-          this.logger.log(
-            `Order ${order.id} is already processed. Ignoring duplicate webhook event.`,
-          );
-          return;
-        }
-
-        await this.prisma.$transaction(async (prisma) => {
-          await prisma.order.update({
-            where: { id: order.id },
-            data: { status: 'PAID' },
+      if (reference.startsWith('ORD-')) {
+        try {
+          const order = await this.prisma.order.findUnique({
+            where: { reference },
+            include: { items: { include: { product: true } } },
           });
 
-          for (const item of order.items) {
-            await prisma.product.update({
-              where: { id: item.productId },
-              data: { stockCount: { decrement: item.quantity } },
-            });
+          if (!order) {
+            this.logger.error(`Order with reference ${reference} not found.`);
+            return;
           }
-        });
 
-        const customerName = order.guestName ?? 'Valued Customer';
-        const customerEmail = order.guestEmail ?? 'No Email';
-        const mappedItems = order.items.map((i) => ({
-          name: i.product.name,
-          quantity: i.quantity,
-          price: i.price,
-        }));
+          if (order.status !== 'PENDING') {
+            this.logger.log(
+              `Order ${order.id} is already processed. Ignoring duplicate webhook event.`,
+            );
+            return;
+          }
 
-        void this.mailService.sendOrderConfirmationEmail({
-          orderId: order.id,
-          customerEmail,
-          customerName,
-          totalAmount: order.totalAmount,
-          items: mappedItems,
-          shippingAddress: order.shippingAddress ?? 'Address not provided',
-        });
+          await this.prisma.$transaction(async (prisma) => {
+            await prisma.order.update({
+              where: { id: order.id },
+              data: { status: 'PAID' },
+            });
 
-        this.logger.log(
-          `Order ${order.id} successfully verified, inventory deducted, and receipt sent.`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Failed to process webhook for reference ${reference}`,
-          error,
-        );
+            for (const item of order.items) {
+              await prisma.product.update({
+                where: { id: item.productId },
+                data: { stockCount: { decrement: item.quantity } },
+              });
+            }
+          });
+
+          const customerName = order.guestName ?? 'Valued Customer';
+          const customerEmail = order.guestEmail ?? 'No Email';
+          const mappedItems = order.items.map((i) => ({
+            name: i.product.name,
+            quantity: i.quantity,
+            price: i.price,
+          }));
+
+          void this.mailService.sendOrderConfirmationEmail({
+            orderId: order.id,
+            customerEmail,
+            customerName,
+            totalAmount: order.totalAmount,
+            items: mappedItems,
+            shippingAddress: order.shippingAddress ?? 'Address not provided',
+          });
+
+          this.logger.log(
+            `Order ${order.id} successfully verified, inventory deducted, and receipt sent.`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Failed to process webhook for Order reference ${reference}`,
+            error,
+          );
+        }
+      } else if (reference.startsWith('BKG-')) {
+        try {
+          const booking = await this.prisma.booking.findUnique({
+            where: { reference },
+            include: { service: true, consultation: true, user: true },
+          });
+
+          if (!booking) {
+            this.logger.error(`Booking with reference ${reference} not found.`);
+            return;
+          }
+
+          if (booking.isPaid) {
+            this.logger.log(
+              `Booking ${booking.id} is already paid. Ignoring duplicate webhook event.`,
+            );
+            return;
+          }
+
+          await this.prisma.booking.update({
+            where: { id: booking.id },
+            data: {
+              isPaid: true,
+              status: 'CONFIRMED',
+            },
+          });
+
+          const clientName =
+            booking.guestName || booking.user?.name || 'Valued Client';
+          const clientEmail =
+            booking.guestEmail || booking.user?.email || 'No Email';
+          const clientPhone =
+            booking.guestPhone || booking.user?.phone || undefined;
+
+          const bookedItemName =
+            booking.service?.name ??
+            booking.consultation?.name ??
+            'Clinic Session';
+
+          const formattedDate = booking.date.toISOString().split('T')[0];
+          const formattedTime = booking.startTime.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+
+          void this.mailService.sendBookingNotificationEmail({
+            clientName,
+            clientEmail,
+            clientPhone,
+            serviceName: bookedItemName,
+            date: formattedDate,
+            time: formattedTime,
+            notes: booking.notes || undefined,
+          });
+
+          void this.mailService.sendBookingStatusUpdateEmail({
+            clientEmail,
+            clientName,
+            serviceName: bookedItemName,
+            date: formattedDate,
+            time: formattedTime,
+            status: 'CONFIRMED',
+          });
+
+          this.logger.log(
+            `Booking ${booking.id} successfully paid and confirmed. Emails sent.`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Failed to process webhook for Booking reference ${reference}`,
+            error,
+          );
+        }
       }
     }
   }

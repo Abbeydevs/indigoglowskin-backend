@@ -2,17 +2,35 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/booking.dto';
 import { BookingStatus } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
+import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
+import axios from 'axios';
+
+interface PaystackInitResponse {
+  status: boolean;
+  message: string;
+  data: {
+    authorization_url: string;
+    access_code: string;
+    reference: string;
+  };
+}
 
 @Injectable()
 export class BookingService {
+  private readonly logger = new Logger(BookingService.name);
+
   constructor(
     private prisma: PrismaService,
     private mailService: MailService,
+    private config: ConfigService,
   ) {}
 
   async createBooking(dto: CreateBookingDto) {
@@ -23,6 +41,7 @@ export class BookingService {
     }
 
     let duration = 0;
+    let price = 0;
     let bookedItemName = '';
 
     if (dto.serviceId) {
@@ -34,6 +53,7 @@ export class BookingService {
           'The requested treatment could not be found.',
         );
       duration = service.duration;
+      price = service.price;
       bookedItemName = service.name;
     } else if (dto.consultationId) {
       const consultation = await this.prisma.consultation.findUnique({
@@ -44,6 +64,7 @@ export class BookingService {
           'The requested consultation could not be found.',
         );
       duration = consultation.duration;
+      price = consultation.price;
       bookedItemName = consultation.name;
     }
 
@@ -55,12 +76,15 @@ export class BookingService {
       ? { serviceId: dto.serviceId }
       : { consultationId: dto.consultationId };
 
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+
     const overlappingBookings = await this.prisma.booking.findMany({
       where: {
         ...overlapFilter,
         status: { not: 'CANCELLED' },
         startTime: { lt: end },
         endTime: { gt: start },
+        OR: [{ isPaid: true }, { createdAt: { gte: fifteenMinutesAgo } }],
       },
     });
 
@@ -70,24 +94,8 @@ export class BookingService {
       );
     }
 
-    const newBooking = await this.prisma.booking.create({
-      data: {
-        userId: dto.userId,
-        guestName: dto.guestName,
-        guestEmail: dto.guestEmail,
-        guestPhone: dto.guestPhone,
-        serviceId: dto.serviceId,
-        consultationId: dto.consultationId,
-        date: bookingDate,
-        startTime: start,
-        endTime: end,
-        notes: dto.notes,
-        status: 'PENDING',
-      },
-    });
-
+    let clientEmail = dto.guestEmail || null;
     let clientName = dto.guestName || 'Guest Client';
-    let clientEmail = dto.guestEmail || 'No Email';
     let clientPhone = dto.guestPhone || '';
 
     if (dto.userId) {
@@ -95,32 +103,90 @@ export class BookingService {
         where: { id: dto.userId },
       });
       if (user) {
-        clientName = user.name || clientName;
         clientEmail = user.email || clientEmail;
+        clientName = user.name || clientName;
         clientPhone = user.phone || clientPhone;
       }
     }
 
-    void this.mailService.sendBookingNotificationEmail({
-      clientName,
-      clientEmail,
-      clientPhone,
-      serviceName: bookedItemName,
-      date: bookingDate.toISOString().split('T')[0],
-      time: start.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      notes: dto.notes,
+    if (!clientEmail) {
+      throw new BadRequestException(
+        'A valid email is required to process the booking payment.',
+      );
+    }
+
+    const reference = `BKG-${randomBytes(8).toString('hex').toUpperCase()}`;
+
+    const newBooking = await this.prisma.booking.create({
+      data: {
+        userId: dto.userId,
+        guestName: clientName,
+        guestEmail: clientEmail,
+        guestPhone: clientPhone,
+        serviceId: dto.serviceId,
+        consultationId: dto.consultationId,
+        date: bookingDate,
+        startTime: start,
+        endTime: end,
+        notes: dto.notes,
+        status: 'PENDING',
+        isPaid: false,
+        reference,
+      },
     });
 
-    return newBooking;
+    try {
+      const frontendUrl =
+        this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+
+      const paystackResponse = await axios.post<PaystackInitResponse>(
+        'https://api.paystack.co/transaction/initialize',
+        {
+          email: clientEmail,
+          amount: price * 100,
+          reference: newBooking.reference,
+          callback_url: `${frontendUrl}/checkout/success?type=booking`,
+          metadata: {
+            bookingId: newBooking.id,
+            type: 'CLINIC_BOOKING',
+            itemName: bookedItemName,
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.config.get<string>('PAYSTACK_SECRET_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      return {
+        authorization_url: paystackResponse.data.data.authorization_url,
+        reference: newBooking.reference,
+        bookingId: newBooking.id,
+      };
+    } catch (error: unknown) {
+      this.logger.error(
+        'Paystack transaction initialization failed for booking',
+        error,
+      );
+      await this.prisma.booking.delete({ where: { id: newBooking.id } });
+      throw new InternalServerErrorException(
+        'Failed to initialize payment with Paystack.',
+      );
+    }
   }
 
   async getUserBookings(userId: string) {
     return this.prisma.booking.findMany({
-      where: { userId },
-      include: { service: true, consultation: true },
+      where: { userId, isPaid: true },
+      include: {
+        service: true,
+        consultation: true,
+        user: {
+          select: { name: true, email: true, phone: true },
+        },
+      },
       orderBy: { startTime: 'desc' },
     });
   }
@@ -176,5 +242,36 @@ export class BookingService {
     }
 
     return updatedBooking;
+  }
+
+  async getTakenSlots(
+    date: string,
+    serviceId?: string,
+    consultationId?: string,
+  ) {
+    if (!date) return [];
+
+    const searchDate = new Date(date);
+    const startOfDay = new Date(searchDate.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(searchDate.setHours(23, 59, 59, 999));
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+
+    const overlapFilter = serviceId ? { serviceId } : { consultationId };
+
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        ...overlapFilter,
+        date: { gte: startOfDay, lte: endOfDay },
+        status: { not: 'CANCELLED' },
+        OR: [{ isPaid: true }, { createdAt: { gte: fifteenMinutesAgo } }],
+      },
+      select: { startTime: true },
+    });
+
+    return bookings.map((b) => {
+      const hrs = b.startTime.getHours().toString().padStart(2, '0');
+      const mins = b.startTime.getMinutes().toString().padStart(2, '0');
+      return `${hrs}:${mins}`;
+    });
   }
 }

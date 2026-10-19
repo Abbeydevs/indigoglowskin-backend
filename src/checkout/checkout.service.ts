@@ -93,12 +93,16 @@ export class CheckoutService {
     });
 
     try {
+      const frontendUrl =
+        this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+
       const paystackResponse = await axios.post<PaystackInitResponse>(
         'https://api.paystack.co/transaction/initialize',
         {
           email,
           amount: totalAmount * 100,
           reference: order.reference,
+          callback_url: `${frontendUrl}/checkout/success?type=order`,
           metadata: { orderId: order.id, type: 'PRODUCT_ORDER' },
         },
         {
