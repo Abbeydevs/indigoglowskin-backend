@@ -32,6 +32,11 @@ export class CreateProductDto {
   stockCount?: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  weight?: number;
+
+  @IsOptional()
   @IsString()
   sizes?: string;
 

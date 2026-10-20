@@ -35,6 +35,7 @@ export class CheckoutService {
     guestPhone?: string;
     shippingAddress: string;
     items: { productId: string; quantity: number }[];
+    shippingFee: number;
   }) {
     let totalAmount = 0;
     const orderItemsData: {
@@ -64,6 +65,8 @@ export class CheckoutService {
         price: product.price,
       });
     }
+
+    totalAmount += dto.shippingFee;
 
     const reference = `ORD-${randomBytes(8).toString('hex').toUpperCase()}`;
     const email =

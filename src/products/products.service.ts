@@ -36,6 +36,7 @@ export class ProductsService {
         price: dto.price,
         oldPrice: dto.oldPrice || null,
         stockCount: dto.stockCount || 0,
+        weight: dto.weight || 0,
         categoryId: dto.categoryId,
         sizes: sizesArray,
         images: imageUrls,
@@ -105,6 +106,7 @@ export class ProductsService {
           dto.stockCount !== undefined
             ? Number(dto.stockCount)
             : existing.stockCount,
+        weight: dto.weight !== undefined ? Number(dto.weight) : existing.weight,
         isNew: dto.isNew !== undefined ? Boolean(dto.isNew) : existing.isNew,
         isBestSeller:
           dto.isBestSeller !== undefined

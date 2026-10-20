@@ -15,6 +15,7 @@ export class CheckoutController {
       guestPhone?: string;
       shippingAddress: string;
       items: { productId: string; quantity: number }[];
+      shippingFee: number;
     },
   ) {
     return this.checkoutService.initializeOrderPayment(dto);

@@ -165,6 +165,7 @@ model Product {
   price         Int
   oldPrice      Int?
   stockCount    Int            @default(0)
+  weight        Float          @default(0)
   images        String[]
   sizes         String[]
   isNew         Boolean        @default(false)
@@ -185,6 +186,24 @@ model ServiceCategory {
   services    SpaService[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+}
+
+model ShippingConfig {
+  id             String   @id @default(cuid())
+  baseWeight     Float    @default(2.0)
+  basePrice      Int      @default(5000)
+  extraWeightFee Int      @default(1000)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ShippingZone {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  fee       Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SpaService {
