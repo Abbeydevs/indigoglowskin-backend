@@ -21,6 +21,7 @@ import { CheckoutModule } from './checkout/checkout.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { ConsultationModule } from './consultation/consultation.module';
 import { ShippingModule } from './shipping/shipping.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ShippingModule } from './shipping/shipping.module';
     WebhookModule,
     ConsultationModule,
     ShippingModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
