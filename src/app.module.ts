@@ -22,6 +22,7 @@ import { WebhookModule } from './webhook/webhook.module';
 import { ConsultationModule } from './consultation/consultation.module';
 import { ShippingModule } from './shipping/shipping.module';
 import { OrdersModule } from './orders/orders.module';
+import { MarketingModule } from './marketing/marketing.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { OrdersModule } from './orders/orders.module';
     ConsultationModule,
     ShippingModule,
     OrdersModule,
+    MarketingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

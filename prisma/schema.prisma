@@ -128,6 +128,17 @@ model Consultation {
   updatedAt DateTime @updatedAt
 }
 
+model Coupon {
+  id                 String    @id @default(cuid())
+  code               String    @unique
+  discountPercentage Int
+  isActive           Boolean   @default(true)
+  expiresAt          DateTime?
+  usageCount         Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
 model Order {
   id        String  @id @default(cuid())
   reference String? @unique
@@ -138,6 +149,9 @@ model Order {
   guestEmail      String?
   guestPhone      String?
   shippingAddress String?
+
+  discountAmount Int     @default(0)
+  couponCode     String?
 
   totalAmount Int
   status      OrderStatus @default(PENDING)
@@ -176,6 +190,14 @@ model Product {
   cartItems     CartItem[]
   wishlistItems WishlistItem[]
   orderItems    OrderItem[]
+}
+
+model PromoBanner {
+  id        String   @id @default(cuid())
+  message   String
+  linkUrl   String?
+  isActive  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
 }
 
 model ServiceCategory {

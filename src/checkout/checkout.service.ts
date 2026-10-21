@@ -36,8 +36,9 @@ export class CheckoutService {
     shippingAddress: string;
     items: { productId: string; quantity: number }[];
     shippingFee: number;
+    couponCode?: string;
   }) {
-    let totalAmount = 0;
+    let subtotal = 0;
     const orderItemsData: {
       productId: string;
       quantity: number;
@@ -57,7 +58,7 @@ export class CheckoutService {
       }
 
       const itemTotal = product.price * item.quantity;
-      totalAmount += itemTotal;
+      subtotal += itemTotal;
 
       orderItemsData.push({
         productId: product.id,
@@ -66,7 +67,34 @@ export class CheckoutService {
       });
     }
 
-    totalAmount += dto.shippingFee;
+    let discountAmount = 0;
+    let validCouponCode: string | null = null;
+
+    if (dto.couponCode) {
+      const coupon = await this.prisma.coupon.findUnique({
+        where: { code: dto.couponCode.toUpperCase() },
+      });
+
+      if (!coupon) {
+        throw new BadRequestException('Invalid coupon code');
+      }
+      if (!coupon.isActive) {
+        throw new BadRequestException('This coupon is currently inactive');
+      }
+      if (coupon.expiresAt && new Date() > coupon.expiresAt) {
+        throw new BadRequestException('This coupon has expired.');
+      }
+
+      validCouponCode = coupon.code;
+      discountAmount = Math.floor(subtotal * (coupon.discountPercentage / 100));
+
+      await this.prisma.coupon.update({
+        where: { id: coupon.id },
+        data: { usageCount: { increment: 1 } },
+      });
+    }
+
+    const totalAmount = subtotal - discountAmount + dto.shippingFee;
 
     const reference = `ORD-${randomBytes(8).toString('hex').toUpperCase()}`;
     const email =
@@ -88,6 +116,8 @@ export class CheckoutService {
         guestPhone: dto.guestPhone,
         shippingAddress: dto.shippingAddress,
         totalAmount,
+        discountAmount,
+        couponCode: validCouponCode,
         status: 'PENDING',
         items: {
           create: orderItemsData,
