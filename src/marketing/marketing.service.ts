@@ -33,7 +33,13 @@ export class MarketingService {
   }
 
   async getAllCoupons() {
-    return this.prisma.coupon.findMany({ orderBy: { createdAt: 'desc' } });
+    return this.prisma.coupon.findMany({
+      include: {
+        products: { select: { id: true, name: true } },
+        categories: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async createCoupon(dto: CreateCouponDto) {
@@ -46,10 +52,20 @@ export class MarketingService {
     return this.prisma.coupon.create({
       data: {
         code: codeUpper,
-        discountPercentage: dto.discountPercentage,
+        type: dto.type,
+        value: dto.value,
+        target: dto.target,
         isActive: dto.isActive ?? true,
-        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+        startDate: dto.startDate ? new Date(dto.startDate) : null,
+        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        products: dto.productIds?.length
+          ? { connect: dto.productIds.map((id) => ({ id })) }
+          : undefined,
+        categories: dto.categoryIds?.length
+          ? { connect: dto.categoryIds.map((id) => ({ id })) }
+          : undefined,
       },
+      include: { products: true, categories: true },
     });
   }
 
@@ -58,10 +74,20 @@ export class MarketingService {
       where: { id },
       data: {
         code: dto.code?.toUpperCase(),
-        discountPercentage: dto.discountPercentage,
+        type: dto.type,
+        value: dto.value,
+        target: dto.target,
         isActive: dto.isActive,
-        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+        startDate: dto.startDate ? new Date(dto.startDate) : null,
+        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        products: dto.productIds
+          ? { set: dto.productIds.map((id) => ({ id })) }
+          : undefined,
+        categories: dto.categoryIds
+          ? { set: dto.categoryIds.map((id) => ({ id })) }
+          : undefined,
       },
+      include: { products: true, categories: true },
     });
   }
 
@@ -72,19 +98,27 @@ export class MarketingService {
   async validateCoupon(code: string) {
     const coupon = await this.prisma.coupon.findUnique({
       where: { code: code.toUpperCase() },
+      include: {
+        products: { select: { id: true } },
+        categories: { select: { id: true } },
+      },
     });
 
     if (!coupon) throw new NotFoundException('Invalid coupon code.');
     if (!coupon.isActive)
       throw new BadRequestException('This coupon is currently inactive.');
-    if (coupon.expiresAt && new Date() > coupon.expiresAt) {
+
+    const now = new Date();
+    if (coupon.startDate && now < coupon.startDate) {
+      throw new BadRequestException('This coupon is not active yet.');
+    }
+    if (coupon.endDate && now > coupon.endDate) {
       throw new BadRequestException('This coupon has expired.');
     }
 
     return {
       message: 'Coupon applied successfully!',
-      discountPercentage: coupon.discountPercentage,
-      code: coupon.code,
+      coupon,
     };
   }
 }

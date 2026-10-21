@@ -15,6 +15,17 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum DiscountType {
+  PERCENTAGE
+  FLAT_FEE
+}
+
+enum DiscountTarget {
+  ALL_PRODUCTS
+  SPECIFIC_CATEGORIES
+  SPECIFIC_PRODUCTS
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -90,6 +101,8 @@ model Category {
   name     String    @unique
   image    String?
   products Product[]
+  couponId String?
+  coupons  Coupon[]  @relation("CategoryToCoupon")
 }
 
 model Cart {
@@ -129,14 +142,20 @@ model Consultation {
 }
 
 model Coupon {
-  id                 String    @id @default(cuid())
-  code               String    @unique
-  discountPercentage Int
-  isActive           Boolean   @default(true)
-  expiresAt          DateTime?
-  usageCount         Int       @default(0)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id         String         @id @default(cuid())
+  code       String         @unique
+  type       DiscountType   @default(PERCENTAGE)
+  value      Int            @default(0)
+  target     DiscountTarget @default(ALL_PRODUCTS)
+  isActive   Boolean        @default(true)
+  startDate  DateTime?
+  endDate    DateTime?
+  usageCount Int            @default(0)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  products   Product[]  @relation("ProductToCoupon")
+  categories Category[] @relation("CategoryToCoupon")
 }
 
 model Order {
@@ -190,6 +209,8 @@ model Product {
   cartItems     CartItem[]
   wishlistItems WishlistItem[]
   orderItems    OrderItem[]
+  couponId      String?
+  coupons       Coupon[]       @relation("ProductToCoupon")
 }
 
 model PromoBanner {

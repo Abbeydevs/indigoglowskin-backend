@@ -5,7 +5,10 @@ import {
   IsOptional,
   IsNumber,
   IsDateString,
+  IsEnum,
+  IsArray,
 } from 'class-validator';
+import { DiscountType, DiscountTarget } from '@prisma/client';
 
 export class UpdateBannerDto {
   @IsOptional()
@@ -27,8 +30,16 @@ export class CreateCouponDto {
   code!: string;
 
   @IsNotEmpty()
+  @IsEnum(DiscountType)
+  type!: DiscountType;
+
+  @IsNotEmpty()
   @IsNumber()
-  discountPercentage!: number;
+  value!: number;
+
+  @IsNotEmpty()
+  @IsEnum(DiscountTarget)
+  target!: DiscountTarget;
 
   @IsOptional()
   @IsBoolean()
@@ -36,7 +47,21 @@ export class CreateCouponDto {
 
   @IsOptional()
   @IsDateString()
-  expiresAt?: string;
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  productIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
 }
 
 export class UpdateCouponDto {
@@ -45,8 +70,16 @@ export class UpdateCouponDto {
   code?: string;
 
   @IsOptional()
+  @IsEnum(DiscountType)
+  type?: DiscountType;
+
+  @IsOptional()
   @IsNumber()
-  discountPercentage?: number;
+  value?: number;
+
+  @IsOptional()
+  @IsEnum(DiscountTarget)
+  target?: DiscountTarget;
 
   @IsOptional()
   @IsBoolean()
@@ -54,5 +87,19 @@ export class UpdateCouponDto {
 
   @IsOptional()
   @IsDateString()
-  expiresAt?: string;
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  productIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
 }

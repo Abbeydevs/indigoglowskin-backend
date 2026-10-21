@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { randomBytes } from 'crypto';
+import { DiscountTarget, DiscountType } from '@prisma/client';
 
 interface PaystackInitResponse {
   status: boolean;
@@ -45,9 +46,23 @@ export class CheckoutService {
       price: number;
     }[] = [];
 
+    const fetchedProducts: {
+      id: string;
+      price: number;
+      quantity: number;
+      categoryId: string;
+    }[] = [];
+
     for (const item of dto.items) {
       const product = await this.prisma.product.findUnique({
         where: { id: item.productId },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          stockCount: true,
+          categoryId: true,
+        },
       });
       if (!product)
         throw new BadRequestException(`Product ${item.productId} not found.`);
@@ -59,6 +74,13 @@ export class CheckoutService {
 
       const itemTotal = product.price * item.quantity;
       subtotal += itemTotal;
+
+      fetchedProducts.push({
+        id: product.id,
+        price: product.price,
+        quantity: item.quantity,
+        categoryId: product.categoryId,
+      });
 
       orderItemsData.push({
         productId: product.id,
@@ -73,6 +95,10 @@ export class CheckoutService {
     if (dto.couponCode) {
       const coupon = await this.prisma.coupon.findUnique({
         where: { code: dto.couponCode.toUpperCase() },
+        include: {
+          products: { select: { id: true } },
+          categories: { select: { id: true } },
+        },
       });
 
       if (!coupon) {
@@ -81,12 +107,42 @@ export class CheckoutService {
       if (!coupon.isActive) {
         throw new BadRequestException('This coupon is currently inactive');
       }
-      if (coupon.expiresAt && new Date() > coupon.expiresAt) {
+
+      const now = new Date();
+      if (coupon.startDate && now < coupon.startDate) {
+        throw new BadRequestException('This coupon is not active yet.');
+      }
+      if (coupon.endDate && now > coupon.endDate) {
         throw new BadRequestException('This coupon has expired.');
       }
 
       validCouponCode = coupon.code;
-      discountAmount = Math.floor(subtotal * (coupon.discountPercentage / 100));
+
+      let eligibleSubtotal = 0;
+
+      for (const fp of fetchedProducts) {
+        if (coupon.target === DiscountTarget.ALL_PRODUCTS) {
+          eligibleSubtotal += fp.price * fp.quantity;
+        } else if (
+          coupon.target === DiscountTarget.SPECIFIC_PRODUCTS &&
+          coupon.products.some((p) => p.id === fp.id)
+        ) {
+          eligibleSubtotal += fp.price * fp.quantity;
+        } else if (
+          coupon.target === DiscountTarget.SPECIFIC_CATEGORIES &&
+          coupon.categories.some((c) => c.id === fp.categoryId)
+        ) {
+          eligibleSubtotal += fp.price * fp.quantity;
+        }
+      }
+
+      if (eligibleSubtotal > 0) {
+        if (coupon.type === DiscountType.PERCENTAGE) {
+          discountAmount = Math.floor(eligibleSubtotal * (coupon.value / 100));
+        } else if (coupon.type === DiscountType.FLAT_FEE) {
+          discountAmount = Math.min(eligibleSubtotal, coupon.value);
+        }
+      }
 
       await this.prisma.coupon.update({
         where: { id: coupon.id },
