@@ -12,6 +12,8 @@ async function bootstrap() {
       'http://localhost:3001',
       'https://indigoglowskin-frontend-80hlgvm9m-abbeydevs-projects.vercel.app/',
       'https://staging.indigoglowskin.com',
+      'https://indigoglowskin.com',
+      'https://www.indigoglowskin.com',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
